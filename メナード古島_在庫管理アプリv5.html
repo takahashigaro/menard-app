@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="メナード古島">
+<title>メナード古島 在庫管理</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --pink:#C8507A;--pink-light:#F9EEF3;--pink-dark:#9B3059;
+  --gray0:#FAFAFA;--gray1:#F4F4F4;--gray2:#E8E8E8;--gray3:#C0C0C0;
+  --gray5:#888;--gray7:#444;--gray9:#111;
+  --green:#2A9D6F;--amber:#D4830A;--red:#C0392B;--red-light:#FDECEA;
+  --radius:12px;--radius-sm:8px;
+}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--gray1);color:var(--gray9);font-size:14px;line-height:1.5}
+.app{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--gray1)}
+.header{background:white;padding:0 16px;border-bottom:1px solid var(--gray2);position:sticky;top:0;z-index:20}
+.header-top{display:flex;align-items:center;justify-content:space-between;height:52px}
+.header-title{font-size:15px;font-weight:700;color:var(--gray9);display:flex;align-items:center;gap:6px}
+.header-title span{color:var(--pink);font-size:18px}
+.header-date{font-size:11px;color:var(--gray5)}
+.sync-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;border:1px solid var(--gray2);border-radius:20px;font-size:11px;cursor:pointer;background:white;color:var(--gray7);font-family:inherit}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--gray3)}
+.sync-dot.ok{background:var(--green)}
+.sync-dot.err{background:var(--red)}
+.sync-dot.ing{background:var(--amber);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tabs{display:flex;background:white;border-bottom:1px solid var(--gray2)}
+.tab{flex:1;padding:10px 0;text-align:center;font-size:12px;font-weight:500;color:var(--gray5);cursor:pointer;border-bottom:2px solid transparent;font-family:inherit;background:transparent;border-top:none;border-left:none;border-right:none}
+.tab.active{color:var(--pink);border-bottom-color:var(--pink)}
+.screen{flex:1;display:none;flex-direction:column;padding:0 0 80px}
+.screen.active{display:flex}
+.cat-strip{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;background:white;border-bottom:1px solid var(--gray2)}
+.cat-strip::-webkit-scrollbar{display:none}
+.cat-pill{flex-shrink:0;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--gray2);cursor:pointer;background:white;color:var(--gray7);font-family:inherit}
+.cat-pill.active{background:var(--pink);color:white;border-color:var(--pink)}
+.search-wrap{padding:8px 12px;background:white;border-bottom:1px solid var(--gray2)}
+.search-box{width:100%;padding:8px 12px;border:1px solid var(--gray2);border-radius:20px;font-size:13px;background:var(--gray0);color:var(--gray9);font-family:inherit}
+.search-box:focus{outline:none;border-color:var(--pink);background:white}
+.toolbar{display:flex;align-items:center;justify-content:space-between;padding:6px 12px}
+.filter-toggle{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--gray7);cursor:pointer}
+.filter-toggle input{accent-color:var(--pink)}
+.item-count{font-size:11px;color:var(--gray5)}
+.prod-list{padding:0 12px;display:flex;flex-direction:column;gap:6px}
+.prod-card{background:white;border-radius:var(--radius);border:1px solid var(--gray2);padding:10px 12px}
+.prod-card.touched{border-color:var(--pink);background:var(--pink-light)}
+.prod-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:8px}
+.prod-name{font-size:13px;font-weight:500;line-height:1.4}
+.prod-price{font-size:11px;color:var(--gray5);white-space:nowrap;flex-shrink:0}
+.prod-inputs{display:flex;gap:6px}
+.inp-group{flex:1;text-align:center}
+.inp-label{font-size:10px;color:var(--gray5);margin-bottom:3px}
+.inp-label b{color:var(--red)}
+.qty-wrap{display:flex;align-items:center;border:1px solid var(--gray2);border-radius:var(--radius-sm);overflow:hidden;background:white}
+.qty-btn{width:36px;height:40px;border:none;background:var(--gray1);color:var(--gray7);font-size:20px;cursor:pointer;font-family:inherit;flex-shrink:0}
+.qty-btn:active{background:var(--gray2)}
+.qty-val{flex:1;text-align:center;font-size:16px;font-weight:500;border:none;outline:none;background:transparent;color:var(--gray9);font-family:inherit;min-width:0}
+.prod-footer{margin-top:6px}
+.stock-info{font-size:11px;color:var(--gray5)}
+.stock-info.warn{color:var(--amber);font-weight:500}
+.stock-info.danger{color:var(--red);font-weight:500}
+.submit-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;padding:10px 12px 20px;background:white;border-top:1px solid var(--gray2);z-index:15}
+.submit-btn{width:100%;padding:14px;background:var(--pink);color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
+.submit-btn:active{background:var(--pink-dark)}
+.submit-btn:disabled{background:var(--gray3);cursor:default}
+.summary-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;background:white;border-bottom:1px solid var(--gray2)}
+.sum-card{background:var(--gray0);border-radius:var(--radius-sm);padding:10px 12px;border:1px solid var(--gray2)}
+.sum-label{font-size:10px;color:var(--gray5);font-weight:500}
+.sum-value{font-size:18px;font-weight:700;color:var(--gray9);margin-top:2px}
+.sum-value.pink{color:var(--pink)}
+.owner-section{padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--gray5)}
+.owner-card{background:white;margin:0 12px 6px;border-radius:var(--radius);border:1px solid var(--gray2);overflow:hidden}
+.owner-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--gray2)}
+.owner-row:last-child{border-bottom:none}
+.owner-name{font-size:12px;flex:1}
+.owner-right{text-align:right;flex-shrink:0}
+.owner-qty{font-size:13px;font-weight:500}
+.owner-qty.zero{color:var(--gray3)}
+.owner-amt{font-size:10px;color:var(--gray5)}
+.export-bar{padding:10px 12px;display:flex;gap:8px}
+.export-btn{flex:1;padding:10px;border:1px solid var(--gray2);border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;background:white;color:var(--gray7);font-family:inherit}
+.log-list{padding:0 12px}
+.log-item{padding:8px 0;border-bottom:1px solid var(--gray2);display:flex;gap:8px}
+.log-time{font-size:11px;color:var(--gray5);white-space:nowrap;margin-top:1px}
+.log-body{font-size:12px;color:var(--gray7);flex:1}
+.log-name{color:var(--gray9);font-weight:500}
+.log-change{font-size:11px;color:var(--gray5);margin-top:1px}
+.master-form{margin:12px;background:white;border-radius:var(--radius);border:1px solid var(--gray2);padding:12px}
+.form-title{font-size:13px;font-weight:700;color:var(--gray7);margin-bottom:10px}
+.form-row{margin-bottom:8px}
+.form-label{font-size:11px;color:var(--gray5);margin-bottom:3px}
+.form-input{width:100%;padding:8px 10px;border:1px solid var(--gray2);border-radius:var(--radius-sm);font-size:13px;color:var(--gray9);background:white;font-family:inherit}
+.form-input:focus{outline:none;border-color:var(--pink)}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.add-btn{width:100%;padding:10px;background:var(--pink);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.master-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--gray2)}
+.master-item:last-child{border-bottom:none}
+.master-name{font-size:12px}
+.master-meta{font-size:11px;color:var(--gray5);margin-top:1px}
+.del-btn{padding:4px 10px;border:1px solid var(--gray2);border-radius:20px;font-size:11px;color:var(--red);cursor:pointer;background:white;font-family:inherit;flex-shrink:0}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--gray9);color:white;padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .25s;z-index:99;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:32px 20px;text-align:center;color:var(--gray3);font-size:13px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-title"><span>✿</span>メナード古島</div>
+      <div class="header-date" id="headerDate"></div>
+    </div>
+    <button class="sync-btn" onclick="manualSync()">
+      <span class="sync-dot ing" id="syncDot"></span>
+      <span id="syncLabel">同期中…</span>
+    </button>
+  </div>
+</div>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('staff')">スタッフ入力</button>
+  <button class="tab" onclick="switchTab('owner')">オーナー確認</button>
+  <button class="tab" onclick="switchTab('master')">マスタ管理</button>
+</div>
+<div id="screen-staff" class="screen active">
+  <div class="cat-strip" id="catStrip"></div>
+  <div class="search-wrap"><input class="search-box" id="staffSearch" type="search" placeholder="商品名を検索…" oninput="renderStaff()"></div>
+  <div class="toolbar">
+    <label class="filter-toggle"><input type="checkbox" id="changedOnly" onchange="renderStaff()"> 変更のみ表示</label>
+    <span class="item-count" id="itemCount"></span>
+  </div>
+  <div class="prod-list" id="prodList"></div>
+  <div class="submit-bar">
+    <button class="submit-btn" id="submitBtn" onclick="submitInventory()">本日の在庫を確定する</button>
+  </div>
+</div>
+<div id="screen-owner" class="screen">
+  <div class="summary-cards">
+    <div class="sum-card"><div class="sum-label">総在庫額</div><div class="sum-value pink" id="ownerTotal">—</div></div>
+    <div class="sum-card"><div class="sum-label">品目数</div><div class="sum-value" id="ownerItems">—</div></div>
+    <div class="sum-card"><div class="sum-label">本日変動</div><div class="sum-value" id="ownerUsed">—</div></div>
+    <div class="sum-card"><div class="sum-label">最終更新</div><div class="sum-value" style="font-size:13px" id="ownerLast">—</div></div>
+  </div>
+  <div class="export-bar">
+    <button class="export-btn" onclick="exportCSV()">CSVダウンロード</button>
+    <button class="export-btn" onclick="refreshOwner()" style="color:var(--pink);border-color:var(--pink-light)">最新に更新</button>
+  </div>
+  <div id="ownerContent"></div>
+  <div class="owner-section" style="margin-top:8px">操作ログ（直近50件）</div>
+  <div class="log-list" id="logList"></div>
+</div>
+<div id="screen-master" class="screen">
+  <div class="master-form">
+    <div class="form-title">＋ 商品を追加</div>
+    <div class="form-row"><div class="form-label">商品名</div><input class="form-input" id="newName" type="text" placeholder="例：FL. 新商品"></div>
+    <div class="form-row-2">
+      <div><div class="form-label">大分類</div>
+        <select class="form-input" id="newCat">
+          <option>AU</option><option>EM</option><option>LI</option><option>TK</option>
+          <option>ME</option><option>FL</option><option>アルファ</option>
+          <option>サロン</option><option>ネイル</option><option>クロワ</option>
+          <option>ボディ</option><option>健康</option>
+        </select>
+      </div>
+      <div><div class="form-label">単価（円）</div><input class="form-input" id="newPrice" type="number" placeholder="5000"></div>
+    </div>
+    <div class="form-row"><div class="form-label">初期在庫数</div><input class="form-input" id="newStock" type="number" value="1" min="0"></div>
+    <button class="add-btn" onclick="addProduct()">追加する</button>
+  </div>
+  <div style="padding:4px 12px"><span style="font-size:11px;color:var(--gray5);font-weight:700">登録商品（<span id="masterCount">0</span>品目）</span></div>
+  <input class="search-box" id="masterSearch" type="search" placeholder="絞り込み…" oninput="renderMaster()" style="margin:0 12px 6px;width:calc(100% - 24px)">
+  <div id="masterCard" class="owner-card" style="overflow:auto"></div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ★★★ ここにApps ScriptのURLを入力してください ★★★
+const SHEETS_URL='https://script.google.com/macros/s/AKfycbzHNKgbJ0Xz_afZowpWkWSeT2H9qD1nBRPtnUbOkTF5MQxyXAc3N-8x0AZVmkTkbmM7Rw/exec';
+
+const MASTER_DATA=[
+["AU","AU. クリームA (ヨウキツキ)",100000,1],["AU","AU ネックエッセンス",35000,1],["AU","AU. リクイドA(ヨウキツキ)",70000,1],
+["EM","EM. ウオッシング B",12000,1],["EM","EM. リフレッシュマッサージB",20000,1],["EM","EM. ナイトクリームB",35000,1],["EM","EM. エクストラクトB",30000,1],["EM","EM. リクイドB",30000,1],["EM","EM. リップスティックA (32)",8000,1],
+["LI","LI. ウオッシングクリームAN",5500,1],["LI","LI. クレンジングクリームAN",5500,1],["LI","LI. マッサージクリームAN",6000,1],["LI","LI. ローションAN",6000,1],["LI","LI. ミルクローションAN",6000,1],["LI","LI. クリームAN",6500,1],
+["TK","TK. ウオッシングクリームA",2500,1],["TK","TK. クレンジングクリームA",2500,1],["TK","TK. マッサージクリームA",3000,1],["TK","TK. ローションA",3000,1],["TK","TK. ミルクローションA",3000,1],["TK","TK. クリームA",4000,1],["TK","TK. パウダーファンデーション (44)",4000,1],["TK","TK. パウダーファンデーション (52)",4000,1],["TK","TK.パウダーファンデーション (SP51)",3400,1],
+["ME","ME. クレンジングクリーム",5000,1],["ME","ME. ミルク",5500,1],
+["FL","FL. ヤクヨウブライトニングパック",7000,1],["FL","FL. クリアローションC",5000,1],["FL","FL. ヤクヨウブライトニングセラム",10000,1],["FL","FL. ヤクヨウブライトニングデイクリーム",7000,1],["FL","FL. ヤクヨウメイクアップベースくサッパリ>",4300,1],["FL","FL. ヤクヨウブライトニングコンシーラー (LB)",5000,1],["FL","FL. ブライトニングファンデ (SP41Y)",5000,1],["FL","FL. ブライトニングファンデ (SP51)",5000,1],["FL","FL. ブライトニングファンデ (SP52)",5000,1],["FL","FL. ブライトニングファンデーション (51)",6000,1],["FL","FL. ブライトニングファンデーション (52)",6000,1],["FL","FL. ブライトニングファンデーション (52Y)",6000,1],
+["アルファ","コラックスC<21>",5000,1],["アルファ","ヤクヨウビューネ スパ シャワーA",2800,1],["アルファ","ハーブマスクA",7000,1],["アルファ","アルファキット ボアライザーX",6000,1],["アルファ","ヤクヨウ オキシコントローラーB",6000,1],["アルファ","アルファキット ヤクヨウラインズリセット<45>",20000,1],["アルファ","プログラム３０",20000,1],
+["サロン","<サロン>クリーンパック",1500,1],["サロン","<サロン> コラックスケアパックC",2500,1],["サロン","<サロン>ダブルビタQパック",2000,1],["サロン","<サロン>ビューネケアバックB",1500,1],["サロン","<サロン>ブライトニングバック",2000,1],["サロン","<サロン>ラインズLRパック",3000,1],
+["ネイル","ネイルカラーSN (11)",1500,1],["ネイル","ネイルカラーSN (192)",1500,1],
+["クロワ","クロワ コンディショナー",3000,1],
+["ボディ","ヤクヨウスカルプエッセンスSV",6000,1],["ボディ","UVプロテクトWPA",3000,1],["ボディ","キッズブロックUVN",2000,1],["ボディ","クールボディエッセンス",2000,1],["ボディ","リフレッシュボディミスト",2500,1],["ボディ","ハーティコフレ",10000,1],
+["健康","ビフィズスプラスA",6000,1],["健康","コラーゲンゴールドA",350,1],["健康","ミドリノケンコウヤサイN",250,1],["健康","レイシ・ニンジンWゴールドN",500,1]
+];
+
+const SK='menard_v4_inv',SK_LOGS='menard_v4_logs';
+let inv={},logs=[],currentCat='ALL';
+
+function init(){
+  const n=new Date();
+  document.getElementById('headerDate').textContent=`${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日（${'日月火水木金土'[n.getDay()]}）`;
+  try{const s=localStorage.getItem(SK);if(s)inv=JSON.parse(s);const l=localStorage.getItem(SK_LOGS);if(l)logs=JSON.parse(l);}catch(e){}
+  const masterNames=new Set(MASTER_DATA.map(r=>r[1]));
+  Object.keys(inv).forEach(k=>{if(k!=='_lastUpdate'&&!masterNames.has(k))inv[k].active=false;});
+  MASTER_DATA.forEach(([cat,name,price,stock])=>{
+    if(!inv[name])inv[name]={id:name,cat,name,price,stock,used:0,sold:0,active:true};
+    else{inv[name].cat=cat;inv[name].price=price;inv[name].active=true;}
+  });
+  save();renderCats();renderStaff();
+  setSyncState('ing');
+  fetchFromSheets();
+}
+
+function save(){
+  try{localStorage.setItem(SK,JSON.stringify(inv));}catch(e){}
+  try{localStorage.setItem(SK_LOGS,JSON.stringify(logs.slice(0,100)));}catch(e){}
+}
+
+function setSyncState(s){
+  document.getElementById('syncDot').className='sync-dot '+(s==='ok'?'ok':s==='err'?'err':s==='ing'?'ing':'');
+  document.getElementById('syncLabel').textContent=s==='ok'?'同期済み':s==='err'?'接続エラー':s==='ing'?'同期中…':'未接続';
+}
+
+async function callSheets(method,body){
+  try{
+    if(method==='GET'){
+      const r=await fetch(`${SHEETS_URL}?action=${body.action}`,{redirect:'follow'});
+      return await r.json();
+    }
+    await fetch(SHEETS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+    return {ok:true};
+  }catch(e){return null;}
+}
+
+async function fetchFromSheets(){
+  const r=await callSheets('GET',{action:'getAll'});
+  if(r&&r.ok){
+    r.products.forEach(p=>{if(inv[p.name])inv[p.name].stock=p.stock;});
+    if(r.logs)logs=r.logs;
+    save();setSyncState('ok');renderStaff();
+  }else{setSyncState('err');}
+}
+
+async function manualSync(){setSyncState('ing');await fetchFromSheets();}
+
+function renderCats(){
+  const cats=['ALL',...new Set(MASTER_DATA.map(r=>r[0]))];
+  document.getElementById('catStrip').innerHTML=cats.map(c=>`<button class="cat-pill${c===currentCat?' active':''}" onclick="selectCat('${c}')">${c}</button>`).join('');
+}
+function selectCat(cat){currentCat=cat;renderCats();renderStaff();}
+
+function renderStaff(){
+  const q=document.getElementById('staffSearch').value.toLowerCase();
+  const co=document.getElementById('changedOnly').checked;
+  const prods=Object.values(inv).filter(p=>p.active&&p.name&&(currentCat==='ALL'||p.cat===currentCat)&&p.name.toLowerCase().includes(q)&&(!co||(p.used>0||p.sold>0||p.arrived>0)));
+  document.getElementById('itemCount').textContent=`${prods.length}品目`;
+  if(!prods.length){document.getElementById('prodList').innerHTML='<div class="empty">該当する商品がありません</div>';return;}
+  document.getElementById('prodList').innerHTML=prods.map(p=>{
+    const rem=p.stock-(p.used||0)-(p.sold||0)+(p.arrived||0),eid=encId(p.id);
+    return `<div class="prod-card${(p.used>0||p.sold>0||p.arrived>0)?' touched':''}" id="card_${eid}">
+      <div class="prod-top"><div class="prod-name">${p.name}</div><div class="prod-price">¥${p.price.toLocaleString()}</div></div>
+      <div class="prod-inputs">
+        <div class="inp-group"><div class="inp-label"><b>施術</b>使用数</div>
+          <div class="qty-wrap"><button class="qty-btn" onclick="adj('${p.id}','used',-1)">−</button>
+          <input class="qty-val" type="number" min="0" value="${p.used||0}" id="u_${eid}" oninput="setField('${p.id}','used',this.value)">
+          <button class="qty-btn" onclick="adj('${p.id}','used',1)">＋</button></div></div>
+        <div class="inp-group"><div class="inp-label"><b>販売</b>個数</div>
+          <div class="qty-wrap"><button class="qty-btn" onclick="adj('${p.id}','sold',-1)">−</button>
+          <input class="qty-val" type="number" min="0" value="${p.sold||0}" id="s_${eid}" oninput="setField('${p.id}','sold',this.value)">
+          <button class="qty-btn" onclick="adj('${p.id}','sold',1)">＋</button></div></div>
+        <div class="inp-group"><div class="inp-label" style="color:#2A9D6F"><b style="color:#2A9D6F">入荷</b>追加数</div>
+          <div class="qty-wrap" style="border-color:#2A9D6F"><button class="qty-btn" onclick="adj('${p.id}','arrived',-1)">−</button>
+          <input class="qty-val" type="number" min="0" value="${p.arrived||0}" id="a_${eid}" oninput="setField('${p.id}','arrived',this.value)">
+          <button class="qty-btn" onclick="adj('${p.id}','arrived',1)">＋</button></div></div>
+      </div>
+      <div class="prod-footer"><span class="stock-info${rem<=0?' danger':rem<=2?' warn':''}" id="si_${eid}">前在庫 ${p.stock}個 → 残 ${rem}個</span></div>
+    </div>`;
+  }).join('');
+}
+
+function encId(id){return String(id).replace(/[^a-zA-Z0-9]/g,'_');}
+function adj(id,field,delta){if(!inv[id])return;inv[id][field]=Math.max(0,(inv[id][field]||0)+delta);document.getElementById((field==='used'?'u':field==='sold'?'s':'a')+'_'+encId(id)).value=inv[id][field];updateCard(id);}
+function setField(id,field,val){if(!inv[id])return;inv[id][field]=Math.max(0,parseInt(val)||0);updateCard(id);}
+function updateCard(id){
+  const p=inv[id],rem=p.stock-(p.used||0)-(p.sold||0)+(p.arrived||0),eid=encId(id);
+  const si=document.getElementById('si_'+eid),card=document.getElementById('card_'+eid);
+  if(si){si.textContent=`前在庫 ${p.stock}個 → 残 ${rem}個`;si.className='stock-info'+(rem<=0?' danger':rem<=2?' warn':'');}
+  if(card)card.className='prod-card'+((p.used>0||p.sold>0||p.arrived>0)?' touched':'');
+}
+
+async function submitInventory(){
+  const changed=Object.values(inv).filter(p=>p.active&&(p.used>0||p.sold>0||p.arrived>0));
+  if(!changed.length){showToast('変更がありません');return;}
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span><span>送信中…</span>';
+  const now=new Date(),tstr=now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  const logItems=[];
+  changed.forEach(p=>{
+    const before=p.stock,after=Math.max(0,before-(p.used||0)-(p.sold||0)+(p.arrived||0));
+    logs.unshift({time:tstr,name:p.name,cat:p.cat,used:p.used||0,sold:p.sold||0,arrived:p.arrived||0,before,after});
+    logItems.push({id:p.id,used:p.used||0,sold:p.sold||0,arrived:p.arrived||0});
+    p.stock=after;p.used=0;p.sold=0;p.arrived=0;
+  });
+  inv._lastUpdate=now.toISOString();save();
+  setSyncState('ing');
+  const r=await callSheets('POST',{action:'updateStock',items:logItems});
+  if(r&&r.ok)setSyncState('ok');else setSyncState('err');
+  btn.disabled=false;btn.innerHTML='本日の在庫を確定する';
+  renderStaff();
+  showToast(r&&r.ok?`${changed.length}品目を更新・Sheetsに同期しました`:`${changed.length}品目を更新しました`);
+}
+
+function renderOwner(){
+  const prods=Object.values(inv).filter(p=>p.active&&p.name);
+  const total=prods.reduce((s,p)=>s+p.stock*p.price,0);
+  const todayDelta=logs.reduce((s,l)=>s+(l.used||0)+(l.sold||0),0);
+  const lu=inv._lastUpdate?new Date(inv._lastUpdate).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}):'—';
+  document.getElementById('ownerTotal').textContent='¥'+total.toLocaleString();
+  document.getElementById('ownerItems').textContent=prods.length+'品';
+  document.getElementById('ownerUsed').textContent=todayDelta+'個';
+  document.getElementById('ownerLast').textContent=lu;
+  const groups={};prods.forEach(p=>{if(!groups[p.cat])groups[p.cat]=[];groups[p.cat].push(p);});
+  let html='';
+  Object.entries(groups).forEach(([cat,ps])=>{
+    const ct=ps.reduce((s,p)=>s+p.stock*p.price,0);
+    html+=`<div class="owner-section">${cat} <span style="font-weight:400;color:var(--gray5)">¥${ct.toLocaleString()}</span></div><div class="owner-card">`;
+    ps.forEach(p=>{html+=`<div class="owner-row"><div class="owner-name">${p.name}</div><div class="owner-right"><div class="owner-qty${p.stock===0?' zero':''}">${p.stock}個</div><div class="owner-amt">¥${(p.stock*p.price).toLocaleString()}</div></div></div>`;});
+    html+=`</div>`;
+  });
+  document.getElementById('ownerContent').innerHTML=html;
+  const ll=logs.slice(0,50);
+  document.getElementById('logList').innerHTML=ll.length?ll.map(l=>`<div class="log-item"><div class="log-time">${l.time}</div><div class="log-body"><div class="log-name">${l.name}</div><div class="log-change">施術 ${l.used||0}個 / 販売 ${l.sold||0}個 / 入荷 ${l.arrived||0}個 → 残${l.after}個</div></div></div>`).join(''):'<div class="empty">ログなし</div>';
+}
+
+async function refreshOwner(){
+  setSyncState('ing');await fetchFromSheets();renderOwner();
+}
+
+function renderMaster(){
+  const q=document.getElementById('masterSearch').value.toLowerCase();
+  const prods=Object.values(inv).filter(p=>p.active&&p.name&&p.name.toLowerCase().includes(q));
+  document.getElementById('masterCount').textContent=prods.length;
+  const groups={};prods.forEach(p=>{if(!groups[p.cat])groups[p.cat]=[];groups[p.cat].push(p);});
+  let html='';
+  Object.entries(groups).forEach(([cat,ps])=>{
+    html+=`<div style="padding:6px 12px 2px;font-size:11px;font-weight:700;color:var(--gray5)">${cat}</div>`;
+    ps.forEach(p=>{html+=`<div class="master-item"><div><div class="master-name">${p.name}</div><div class="master-meta">¥${p.price.toLocaleString()} / 在庫 ${p.stock}個</div></div><button class="del-btn" onclick="deleteProduct('${p.id.replace(/'/g,"\\'")}')">削除</button></div>`;});
+  });
+  document.getElementById('masterCard').innerHTML=html||'<div class="empty">該当なし</div>';
+}
+
+async function addProduct(){
+  const name=document.getElementById('newName').value.trim(),cat=document.getElementById('newCat').value;
+  const price=parseInt(document.getElementById('newPrice').value)||0,stock=parseInt(document.getElementById('newStock').value)||1;
+  if(!name){showToast('商品名を入力してください');return;}
+  if(inv[name]&&inv[name].active){showToast('すでに登録されています');return;}
+  inv[name]={id:name,cat,name,price,stock,used:0,sold:0,active:true};save();
+  const r=await callSheets('POST',{action:'addProduct',product:{id:name,name,cat,price,stock}});
+  if(r&&r.ok&&r.id){inv[name].id=r.id;save();}
+  document.getElementById('newName').value='';document.getElementById('newPrice').value='';document.getElementById('newStock').value='1';
+  showToast('追加しました');renderCats();renderMaster();renderStaff();
+}
+
+async function deleteProduct(id){
+  if(!inv[id])return;inv[id].active=false;save();
+  await callSheets('POST',{action:'deleteProduct',productId:id});
+  showToast('削除しました');renderCats();renderMaster();renderStaff();renderOwner();
+}
+
+function exportCSV(){
+  const prods=Object.values(inv).filter(p=>p.active&&p.name);
+  let csv='\uFEFF商品名,大分類,単価,在庫数,在庫額\n';
+  prods.forEach(p=>{csv+=`"${p.name}",${p.cat},${p.price},${p.stock},${p.stock*p.price}\n`;});
+  csv+=`,,,,${prods.reduce((s,p)=>s+p.stock*p.price,0)}\n`;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`menard_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['staff','owner','master'][i]===t));
+  document.querySelectorAll('.screen').forEach(el=>el.classList.toggle('active',el.id===`screen-${t}`));
+  if(t==='owner')renderOwner();if(t==='master')renderMaster();
+}
+
+function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);}
+
+init();
+</script>
+</body>
+</html>
