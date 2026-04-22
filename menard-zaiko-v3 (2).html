@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>メナード古島 在庫管理 v3</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --rose:#c9727a; --rose-l:#fdf0f1; --rose-d:#9a4f57;
+  --gold:#b8975a; --gold-l:#fdf6ea;
+  --sage:#5f9e7e; --sage-l:#eaf4ef;
+  --amber:#e07b30; --amber-l:#fef3ea;
+  --red:#d94040; --red-l:#fdeaea;
+  --ink:#1e1e1e; --ink2:#555; --ink3:#999;
+  --bg:#f7f5f2; --white:#fff; --border:#e5ddd5;
+  --sh:0 2px 10px rgba(0,0,0,.07);
+  --sh2:0 6px 24px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;min-height:100vh;}
+
+/* ── HEADER ── */
+header{background:linear-gradient(135deg,#c9727a,#9a4f57);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 3px 16px rgba(154,79,87,.35);}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;}
+.hdr-brand{font-size:16px;font-weight:800;letter-spacing:.04em;}
+.hdr-sub{font-size:10px;opacity:.72;margin-top:1px;}
+.total-box{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:5px 11px;text-align:right;}
+.total-lbl{font-size:10px;opacity:.75;}
+.total-val{font-size:21px;font-weight:900;letter-spacing:-.02em;}
+
+/* ── STAFF BAR ── */
+.staff-bar{background:rgba(0,0,0,.18);padding:7px 12px;display:flex;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;}
+.staff-bar::-webkit-scrollbar{display:none;}
+.staff-lbl{font-size:11px;opacity:.75;flex-shrink:0;}
+.staff-btn{padding:4px 11px;border-radius:20px;border:1px solid rgba(255,255,255,.38);background:transparent;color:#fff;font-size:12px;cursor:pointer;font-family:inherit;flex-shrink:0;transition:.15s;}
+.staff-btn.active{background:#fff;color:var(--rose-d);font-weight:700;}
+.add-staff-btn{padding:4px 10px;border-radius:20px;border:1px dashed rgba(255,255,255,.5);background:transparent;color:rgba(255,255,255,.75);font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0;}
+
+/* ── MAIN TABS ── */
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+.tab-bar::-webkit-scrollbar{display:none;}
+.t-btn{flex-shrink:0;padding:10px 13px;border:none;background:transparent;font-size:13px;color:var(--ink3);cursor:pointer;font-family:inherit;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.15s;white-space:nowrap;}
+.t-btn.active{color:var(--rose);border-bottom-color:var(--rose);font-weight:700;}
+
+/* ── SEARCH ── */
+.search-row{display:flex;gap:7px;padding:9px 11px;background:#fff;border-bottom:1px solid var(--border);}
+.s-input{flex:1;padding:8px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:var(--bg);}
+.s-input:focus{border-color:var(--rose);}
+
+/* ── CATEGORY FILTER ── */
+.cat-scroll{display:flex;overflow-x:auto;gap:5px;padding:8px 11px;background:#fff;border-bottom:1px solid var(--border);scrollbar-width:none;}
+.cat-scroll::-webkit-scrollbar{display:none;}
+.cat-chip{flex-shrink:0;padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-size:12px;cursor:pointer;font-family:inherit;transition:.15s;}
+.cat-chip.active{color:#fff;border-color:transparent;font-weight:700;}
+
+/* ── PRODUCT LIST ── */
+.p-list{padding:8px;display:flex;flex-direction:column;gap:5px;}
+.p-card{background:#fff;border-radius:11px;padding:11px 13px;display:flex;align-items:center;gap:9px;box-shadow:var(--sh);border:1px solid var(--border);transition:.15s;}
+.p-card.consumable{border-left:4px solid var(--amber);}
+.cat-bar{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.p-info{flex:1;min-width:0;}
+.p-name{font-size:13px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.p-meta{font-size:11px;color:var(--ink3);margin-top:2px;display:flex;gap:6px;align-items:center;}
+.p-price{color:var(--gold);font-weight:600;}
+.consumable-badge{background:var(--amber-l);color:var(--amber);font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;flex-shrink:0;}
+
+/* ── STOCK CONTROLS ── */
+.sc-wrap{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.sc-num{min-width:30px;text-align:center;font-size:18px;font-weight:800;}
+.sc-num.zero{color:#ccc;}
+.sc-num.low{color:var(--rose);}
+
+/* ── ACTION BUTTONS ── */
+.act-btns{display:flex;flex-direction:column;gap:4px;flex-shrink:0;}
+.act-row{display:flex;gap:4px;}
+.ab{padding:5px 9px;border-radius:8px;border:none;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap;}
+.ab:active{opacity:.75;transform:scale(.95);}
+.ab-in{background:var(--sage-l);color:var(--sage);}
+.ab-sell{background:var(--rose-l);color:var(--rose-d);}
+.ab-test{background:var(--gold-l);color:var(--gold);}
+.ab-urgent{background:var(--red-l);color:var(--red);animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+/* ── FLASH ── */
+@keyframes fIn{0%{background:#fff;}40%{background:#e8f5e9;}100%{background:#fff;}}
+@keyframes fOut{0%{background:#fff;}40%{background:#fce4ec;}100%{background:#fff;}}
+@keyframes fUrg{0%{background:#fff;}40%{background:#fff3e0;}100%{background:#fff;}}
+.flash-in{animation:fIn .5s ease;}
+.flash-out{animation:fOut .5s ease;}
+.flash-urg{animation:fUrg .5s ease;}
+
+/* ── VIEWS ── */
+.view{display:none;}
+.view.active{display:block;}
+
+/* ── HISTORY ── */
+.h-list{padding:8px;display:flex;flex-direction:column;gap:5px;}
+.h-item{background:#fff;border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:9px;box-shadow:var(--sh);border:1px solid var(--border);}
+.h-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.h-in{background:var(--sage-l);}
+.h-sell{background:var(--rose-l);}
+.h-tester{background:var(--gold-l);}
+.h-consumable{background:var(--amber-l);}
+.h-info{flex:1;min-width:0;}
+.h-prod{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.h-detail{font-size:11px;color:var(--ink3);margin-top:2px;display:flex;gap:5px;flex-wrap:wrap;}
+.tag{display:inline-block;border-radius:9px;padding:1px 7px;font-size:10px;font-weight:700;}
+.tag-in{background:var(--sage-l);color:var(--sage);}
+.tag-sell{background:var(--rose-l);color:var(--rose-d);}
+.tag-tester{background:var(--gold-l);color:var(--gold);}
+.tag-consumable{background:var(--amber-l);color:var(--amber);}
+.tag-staff{background:#eef;color:#557;}
+.h-time{font-size:10px;color:var(--ink3);flex-shrink:0;text-align:right;}
+
+/* ── ANALYSIS ── */
+.an-section{padding:10px;}
+.an-card{background:#fff;border-radius:12px;padding:14px;box-shadow:var(--sh);border:1px solid var(--border);margin-bottom:10px;}
+.an-title{font-size:13px;font-weight:800;margin-bottom:12px;color:var(--ink);}
+.an-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.an-row:last-child{border:none;}
+.an-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;}
+.an-nums{display:flex;gap:12px;flex-shrink:0;font-size:12px;}
+.an-sell-num{color:var(--rose-d);font-weight:700;}
+.an-test-num{color:var(--gold);font-weight:700;}
+.chart-wrap{position:relative;height:200px;}
+.period-btns{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.period-btn{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-size:12px;cursor:pointer;font-family:inherit;transition:.15s;}
+.period-btn.active{background:var(--rose);color:#fff;border-color:var(--rose);}
+
+/* ── SETTINGS ── */
+.st-section{padding:10px;}
+.st-card{background:#fff;border-radius:12px;padding:14px;box-shadow:var(--sh);border:1px solid var(--border);margin-bottom:10px;}
+.st-title{font-size:13px;font-weight:800;margin-bottom:11px;}
+.st-row{margin-bottom:10px;}
+.st-lbl{font-size:11px;color:var(--ink3);margin-bottom:3px;}
+.st-input{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;}
+.st-input:focus{border-color:var(--rose);}
+.st-btn{width:100%;padding:11px;background:var(--rose);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:3px;}
+.st-btn:active{background:var(--rose-d);}
+.st-btn.sec{background:#fff;color:var(--rose);border:1px solid var(--rose);margin-top:7px;}
+.st-btn.danger{background:#fff;color:var(--red);border:1px solid var(--red);margin-top:7px;}
+.sync-st{font-size:12px;padding:7px;border-radius:6px;text-align:center;margin-top:7px;}
+.sy-ok{background:var(--sage-l);color:var(--sage);}
+.sy-er{background:var(--red-l);color:var(--red);}
+.sy-go{background:var(--gold-l);color:var(--gold);}
+
+/* ── MASTER EDIT TABLE ── */
+.master-table{width:100%;border-collapse:collapse;font-size:12px;}
+.master-table th{background:var(--rose-l);color:var(--rose-d);padding:7px 8px;text-align:left;font-weight:700;position:sticky;top:0;}
+.master-table td{padding:6px 8px;border-bottom:1px solid var(--border);}
+.master-table tr:last-child td{border:none;}
+.master-table input{width:100%;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;outline:none;}
+.master-table input:focus{border-color:var(--rose);}
+.m-del{background:var(--red-l);color:var(--red);border:none;border-radius:5px;padding:3px 7px;cursor:pointer;font-size:11px;font-family:inherit;}
+.m-add-row{width:100%;padding:8px;background:var(--sage-l);color:var(--sage);border:1px dashed var(--sage);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;}
+.table-scroll{overflow-x:auto;border-radius:8px;border:1px solid var(--border);}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(80px);background:rgba(30,30,30,.92);color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;z-index:9999;transition:transform .3s ease;white-space:nowrap;pointer-events:none;max-width:90vw;text-align:center;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── URGENT ALERT ── */
+#urgentAlert{display:none;position:fixed;top:0;left:0;right:0;z-index:500;background:linear-gradient(135deg,#d94040,#b02020);color:#fff;padding:14px 16px;text-align:center;box-shadow:0 4px 20px rgba(217,64,64,.5);}
+.urg-title{font-size:15px;font-weight:800;margin-bottom:4px;}
+.urg-msg{font-size:12px;opacity:.9;}
+.urg-close{position:absolute;top:10px;right:14px;background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;}
+
+/* ── CLOSING BTN ── */
+#closingBtn{position:fixed;bottom:16px;right:14px;background:var(--gold);color:#fff;border:none;border-radius:28px;padding:11px 18px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(184,151,90,.4);font-family:inherit;z-index:50;}
+#closingBtn:active{background:#9a7a40;}
+
+/* ── MODAL ── */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;}
+.modal-ov.open{display:flex;}
+.modal-box{background:#fff;border-radius:20px 20px 0 0;padding:22px 18px 36px;width:100%;max-height:88vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:800;margin-bottom:14px;}
+.modal-close{float:right;border:none;background:var(--border);border-radius:50%;width:27px;height:27px;font-size:15px;cursor:pointer;line-height:27px;text-align:center;}
+.s-table{width:100%;border-collapse:collapse;font-size:12px;}
+.s-table th{background:var(--rose-l);color:var(--rose-d);padding:7px 9px;text-align:left;font-weight:700;}
+.s-table td{padding:7px 9px;border-bottom:1px solid var(--border);}
+.s-table tr:last-child td{border:none;}
+.s-total{font-size:16px;font-weight:800;color:var(--rose-d);text-align:right;margin-top:11px;padding-top:11px;border-top:2px solid var(--rose-l);}
+
+/* ── STAFF MGMT MODAL ── */
+.staff-list-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);}
+.staff-list-item:last-child{border:none;}
+.staff-list-item input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none;}
+.staff-list-item input:focus{border-color:var(--rose);}
+.s-del-btn{background:var(--red-l);color:var(--red);border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px;flex-shrink:0;}
+.s-add-btn{width:100%;padding:9px;background:var(--sage-l);color:var(--sage);border:1px dashed var(--sage);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:10px;}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:44px 20px;color:var(--ink3);}
+.empty .ic{font-size:38px;margin-bottom:10px;}
+
+/* ── CANCEL ── */
+.cancel-btn{background:#f5f5f5;color:#bbb;border:1px solid #e0e0e0;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0;transition:.15s;white-space:nowrap;}
+.cancel-btn:active{background:var(--red-l);color:var(--red);border-color:var(--red);}
+.h-item.cancelled{opacity:.4;background:#fafafa;}
+.tag-cancelled{background:#eee;color:#aaa;}
+</style>
+</head>
+<body>
+
+<!-- URGENT ALERT -->
+<div id="urgentAlert">
+  <button class="urg-close" onclick="closeUrgent()">✕</button>
+  <div class="urg-title">⚠️ 消耗品 残りわずか！</div>
+  <div class="urg-msg" id="urgentMsg"></div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-top">
+    <div>
+      <div class="hdr-brand">🌸 メナード古島</div>
+      <div class="hdr-sub">在庫管理システム v3</div>
+    </div>
+    <div class="total-box">
+      <div class="total-lbl">在庫総額</div>
+      <div class="total-val" id="totalAmt">¥0</div>
+    </div>
+  </div>
+  <div class="staff-bar" id="staffBar">
+    <span class="staff-lbl">担当：</span>
+  </div>
+</header>
+
+<!-- MAIN TABS -->
+<div class="tab-bar" id="mainTabs">
+  <button class="t-btn active" onclick="switchView('inventory',this)">📦 在庫</button>
+  <button class="t-btn" onclick="switchView('history',this)">📋 履歴</button>
+  <button class="t-btn" onclick="switchView('analysis',this)">📊 分析</button>
+  <button class="t-btn" onclick="switchView('settings',this)">⚙️ 設定</button>
+</div>
+
+<!-- ═══ INVENTORY VIEW ═══ -->
+<div class="view active" id="view-inventory">
+  <div class="search-row">
+    <input class="s-input" id="searchInput" type="search" placeholder="商品名・カテゴリで検索..." oninput="renderProducts()" autocomplete="off">
+  </div>
+  <div class="cat-scroll" id="catFilter"></div>
+  <div class="p-list" id="productList"></div>
+  <div style="height:90px;"></div>
+</div>
+
+<!-- ═══ HISTORY VIEW ═══ -->
+<div class="view" id="view-history">
+  <div class="search-row" style="gap:5px;">
+    <select id="hFilter" class="s-input" style="max-width:120px;" onchange="renderHistory()">
+      <option value="all">全て</option>
+      <option value="in">入庫のみ</option>
+      <option value="sell">販売のみ</option>
+      <option value="tester">テスターのみ</option>
+      <option value="consumable">消耗品のみ</option>
+    </select>
+    <input class="s-input" id="hSearch" placeholder="商品名・担当者で検索..." oninput="renderHistory()">
+  </div>
+  <div class="h-list" id="historyList"></div>
+  <div style="height:80px;"></div>
+</div>
+
+<!-- ═══ ANALYSIS VIEW ═══ -->
+<div class="view" id="view-analysis">
+  <div class="an-section">
+    <div class="an-card">
+      <div class="an-title">📈 在庫総額 推移</div>
+      <div class="period-btns" id="periodBtns">
+        <button class="period-btn active" onclick="setPeriod('today',this)">本日</button>
+        <button class="period-btn" onclick="setPeriod('week',this)">1週間</button>
+        <button class="period-btn" onclick="setPeriod('5weeks',this)">5週間</button>
+        <button class="period-btn" onclick="setPeriod('year',this)">年間(シート)</button>
+      </div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      <div id="yearNote" style="display:none;font-size:12px;color:var(--ink3);margin-top:10px;text-align:center;">
+        📊 1年間データはGoogleスプレッドシートで確認できます → <span style="color:var(--rose);cursor:pointer;" onclick="openGSheetUrl()">シートを開く</span>
+      </div>
+    </div>
+    <div class="an-card">
+      <div class="an-title">🛍 販売実績（商品別）</div>
+      <div id="sellRanking"></div>
+    </div>
+    <div class="an-card">
+      <div class="an-title">🧪 テスター出庫実績</div>
+      <div id="testerRanking"></div>
+    </div>
+    <div class="an-card">
+      <div class="an-title">🗂 カテゴリ別在庫額</div>
+      <div class="chart-wrap"><canvas id="catChart"></canvas></div>
+    </div>
+  </div>
+  <div style="height:80px;"></div>
+</div>
+
+<!-- ═══ SETTINGS VIEW ═══ -->
+<div class="view" id="view-settings">
+  <div class="st-section">
+    <!-- GAS -->
+    <div class="st-card">
+      <div class="st-title">📡 Googleシート連携（GAS）</div>
+      <div class="st-row">
+        <div class="st-lbl">ウェブフック URL</div>
+        <input class="st-input" id="gasUrl" type="url" placeholder="https://script.google.com/macros/s/...">
+      </div>
+      <div class="st-row">
+        <div class="st-lbl">スプレッドシート URL（分析用）</div>
+        <input class="st-input" id="sheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/...">
+      </div>
+      <button class="st-btn" onclick="saveGasSettings()">設定を保存</button>
+      <button class="st-btn sec" onclick="testGas()">🔗 接続テスト</button>
+      <div id="syncSt" style="display:none;" class="sync-st"></div>
+    </div>
+    <!-- STAFF -->
+    <div class="st-card">
+      <div class="st-title">👥 スタッフ管理</div>
+      <button class="st-btn sec" onclick="openStaffModal()">スタッフを編集する</button>
+    </div>
+    <!-- MASTER EDIT -->
+    <div class="st-card">
+      <div class="st-title">📝 商品マスタ編集 <span id="masterLockBadge" style="font-size:11px;font-weight:400;margin-left:6px;"></span></div>
+
+      <!-- 店長以外に表示するロック画面 -->
+      <div id="masterLocked" style="display:none;text-align:center;padding:24px 12px;">
+        <div style="font-size:36px;margin-bottom:10px;">🔒</div>
+        <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px;">店長専用機能です</div>
+        <div style="font-size:12px;color:var(--ink3);line-height:1.7;">
+          商品マスタの追加・削除・変更は<br>店長のみ操作できます。<br>
+          上のスタッフ欄で「店長」を選択してください。
+        </div>
+      </div>
+
+      <!-- 店長のみ表示 -->
+      <div id="masterUnlocked">
+        <p style="font-size:12px;color:var(--ink3);margin-bottom:10px;">商品の追加・削除・単価変更ができます。Googleシートにも同期されます。</p>
+        <div class="table-scroll">
+          <table class="master-table" id="masterTable">
+            <thead><tr><th>商品名</th><th>単価</th><th>カテゴリ</th><th>消耗品</th><th></th></tr></thead>
+            <tbody id="masterTbody"></tbody>
+          </table>
+        </div>
+        <button class="m-add-row" onclick="addMasterRow()">＋ 商品を追加</button>
+        <button class="st-btn" style="margin-top:10px;" onclick="saveMaster()">✅ マスタを保存</button>
+        <button class="st-btn sec" onclick="syncMasterToGAS()">📤 Googleシートに同期</button>
+      </div>
+    </div>
+    <!-- DATA -->
+    <div class="st-card">
+      <div class="st-title">🔄 データ管理 <span style="font-size:11px;font-weight:400;color:var(--ink3);">（店長専用）</span></div>
+      <div id="dataLocked" style="display:none;text-align:center;padding:16px 12px;">
+        <div style="font-size:28px;margin-bottom:8px;">🔒</div>
+        <div style="font-size:12px;color:var(--ink3);">店長のみ操作できます</div>
+      </div>
+      <div id="dataUnlocked">
+        <button class="st-btn sec" onclick="exportJSON()">📥 JSONエクスポート</button>
+        <button class="st-btn danger" onclick="resetAll()">⚠️ 全データリセット</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--ink3);text-align:center;margin-top:14px;line-height:1.8;">
+      メナード古島 在庫管理 v3<br>データはブラウザに保存されます
+    </div>
+  </div>
+</div>
+
+<!-- CLOSING BUTTON -->
+<button id="closingBtn" onclick="openClosingModal()">🔒 1日締め</button>
+
+<!-- CLOSING MODAL -->
+<div class="modal-ov" id="closingModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('closingModal')">✕</button>
+    <div class="modal-title">📋 1日締め集計</div>
+    <div id="closingContent"></div>
+    <div class="s-total" id="closingTotal"></div>
+    <button class="st-btn" style="margin-top:14px;" onclick="doClosing()">✅ 締め処理 → Googleシートへ送信</button>
+  </div>
+</div>
+
+<!-- STAFF MODAL -->
+<div class="modal-ov" id="staffModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('staffModal')">✕</button>
+    <div class="modal-title">👥 スタッフ管理</div>
+    <p style="font-size:12px;color:var(--ink3);margin-bottom:12px;">※最大8名まで追加できます</p>
+    <div id="staffEditList"></div>
+    <button class="s-add-btn" onclick="addStaffRow()">＋ スタッフを追加</button>
+    <button class="st-btn" style="margin-top:12px;" onclick="saveStaff()">✅ 保存</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  MASTER DATA (from xlsx)
+// ═══════════════════════════════════════════════
+const MASTER_DEFAULT = [
+  {code:"712163",name:"AU. クリームA (ヨウキツキ)",price:100000,category:"AU",stock:1,isConsumable:false},
+  {code:"710503",name:"AU ネックエッセンス",price:35000,category:"AU",stock:1,isConsumable:false},
+  {code:"712156",name:"AU. リクイドA(ヨウキツキ)",price:70000,category:"AU",stock:1,isConsumable:false},
+  {code:"712736",name:"EM. ウオッシング B",price:12000,category:"EM",stock:1,isConsumable:false},
+  {code:"713009",name:"EM. リフレッシュマッサージB",price:20000,category:"EM",stock:1,isConsumable:false},
+  {code:"713054",name:"EM. ナイトクリームB",price:35000,category:"EM",stock:1,isConsumable:false},
+  {code:"713030",name:"EM. エクストラクトB",price:30000,category:"EM",stock:1,isConsumable:false},
+  {code:"713016",name:"EM. リクイドB",price:30000,category:"EM",stock:1,isConsumable:false},
+  {code:"736992",name:"EM. リップスティックA (32)",price:8000,category:"EM",stock:1,isConsumable:false},
+  {code:"711166",name:"LI. ウオッシングクリームAN",price:5500,category:"LI",stock:1,isConsumable:false},
+  {code:"711159",name:"LI. クレンジングクリームAN",price:5500,category:"LI",stock:1,isConsumable:false},
+  {code:"711173",name:"LI. マッサージクリームAN",price:6000,category:"LI",stock:1,isConsumable:false},
+  {code:"711180",name:"LI. ローションAN",price:6000,category:"LI",stock:1,isConsumable:false},
+  {code:"711197",name:"LI. ミルクローションAN",price:6000,category:"LI",stock:1,isConsumable:false},
+  {code:"711203",name:"LI. クリームAN",price:6500,category:"LI",stock:1,isConsumable:false},
+  {code:"713092",name:"TK. ウオッシングクリームA",price:2500,category:"TK",stock:1,isConsumable:false},
+  {code:"712941",name:"TK. クレンジングクリームA",price:2500,category:"TK",stock:1,isConsumable:false},
+  {code:"713115",name:"TK. マッサージクリームA",price:3000,category:"TK",stock:1,isConsumable:false},
+  {code:"713139",name:"TK. ローションA",price:3000,category:"TK",stock:1,isConsumable:false},
+  {code:"713160",name:"TK. ミルクローションA",price:3000,category:"TK",stock:1,isConsumable:false},
+  {code:"713184",name:"TK. クリームA",price:4000,category:"TK",stock:1,isConsumable:false},
+  {code:"71377",name:"TK. パウダーファンデーション (44)",price:4000,category:"TK",stock:1,isConsumable:false},
+  {code:"734486",name:"TK. パウダーファンデーション (52)",price:4000,category:"TK",stock:1,isConsumable:false},
+  {code:"734554",name:"TK.パウダーファンデーション (SP51)",price:3400,category:"TK",stock:1,isConsumable:false},
+  {code:"570077",name:"ME. クレンジングクリーム",price:5000,category:"ME",stock:1,isConsumable:false},
+  {code:"570107",name:"ME. ミルク",price:5500,category:"ME",stock:1,isConsumable:false},
+  {code:"712606",name:"FL. ヤクヨウブライトニングパック",price:7000,category:"FL",stock:1,isConsumable:false},
+  {code:"712590",name:"FL. クリアローションC",price:5000,category:"FL",stock:1,isConsumable:false},
+  {code:"712613",name:"FL. ヤクヨウブライトニングセラム",price:10000,category:"FL",stock:1,isConsumable:false},
+  {code:"712620",name:"FL. ヤクヨウブライトニングデイクリーム",price:7000,category:"FL",stock:1,isConsumable:false},
+  {code:"738132",name:"FL. ヤクヨウメイクアップベース<サッパリ>",price:4300,category:"FL",stock:1,isConsumable:false},
+  {code:"738644",name:"FL. ヤクヨウブライトニングコンシーラー (LB)",price:5000,category:"FL",stock:1,isConsumable:false},
+  {code:"738286",name:"FL. ブライトニングファンデ (SP41Y)",price:5000,category:"FL",stock:1,isConsumable:false},
+  {code:"738309",name:"FL. ブライトニングファンデ (SP51)",price:5000,category:"FL",stock:1,isConsumable:false},
+  {code:"738323",name:"FL. ブライトニングファンデ (SP52)",price:5000,category:"FL",stock:1,isConsumable:false},
+  {code:"738217",name:"FL. ブライトニングファンデーション (51)",price:6000,category:"FL",stock:1,isConsumable:false},
+  {code:"738231",name:"FL. ブライトニングファンデーション (52)",price:6000,category:"FL",stock:1,isConsumable:false},
+  {code:"738248",name:"FL. ブライトニングファンデーション (52Y)",price:6000,category:"FL",stock:1,isConsumable:false},
+  {code:"711234",name:"コラックスC<21>",price:5000,category:"アルファ",stock:1,isConsumable:false},
+  {code:"711128",name:"ヤクヨウビューネ スパ シャワーA",price:2800,category:"アルファ",stock:1,isConsumable:false},
+  {code:"712149",name:"ハーブマスクA",price:7000,category:"アルファ",stock:1,isConsumable:false},
+  {code:"638814",name:"アルファキット ボアライザーX",price:6000,category:"アルファ",stock:1,isConsumable:false},
+  {code:"710367",name:"ヤクヨウ オキシコントローラーB",price:6000,category:"アルファ",stock:1,isConsumable:false},
+  {code:"649797",name:"アルファキット ヤクヨウラインズリセット<45>",price:20000,category:"アルファ",stock:1,isConsumable:false},
+  {code:"",name:"プログラム３０",price:20000,category:"アルファ",stock:1,isConsumable:false},
+  {code:"312400",name:"<サロン>クリーンパック",price:1500,category:"サロン",stock:1,isConsumable:false},
+  {code:"711401",name:"<サロン> コラックスケアパックC",price:2500,category:"サロン",stock:1,isConsumable:false},
+  {code:"710664",name:"<サロン>ダブルビタQパック",price:2000,category:"サロン",stock:1,isConsumable:false},
+  {code:"712996",name:"<サロン>ビューネケアバックB",price:1500,category:"サロン",stock:1,isConsumable:false},
+  {code:"712354",name:"<サロン>ブライトニングバック",price:2000,category:"サロン",stock:1,isConsumable:false},
+  {code:"712668",name:"<サロン>ラインズLRパック",price:3000,category:"サロン",stock:1,isConsumable:false},
+  {code:"737593",name:"ネイルカラーSN (11)",price:1500,category:"ネイル",stock:1,isConsumable:false},
+  {code:"737753",name:"ネイルカラーSN (192)",price:1500,category:"ネイル",stock:1,isConsumable:false},
+  {code:"311335",name:"クロワ コンディショナー",price:3000,category:"クロワ",stock:1,isConsumable:false},
+  {code:"711210",name:"ヤクヨウスカルプエッセンスSV",price:6000,category:"ボディ",stock:1,isConsumable:false},
+  {code:"712675",name:"UVプロテクトWPA",price:3000,category:"ボディ",stock:1,isConsumable:false},
+  {code:"711098",name:"キッズブロックUVN",price:2000,category:"ボディ",stock:1,isConsumable:false},
+  {code:"710022",name:"クールボディエッセンス",price:2000,category:"ボディ",stock:1,isConsumable:false},
+  {code:"710046",name:"リフレッシュボディミスト",price:2500,category:"ボディ",stock:1,isConsumable:false},
+  {code:"713207",name:"ハーティコフレ",price:10000,category:"ボディ",stock:1,isConsumable:false},
+  {code:"700139",name:"ビフィズスプラスA",price:6000,category:"健康",stock:1,isConsumable:false},
+  {code:"700078",name:"コラーゲンゴールドA",price:350,category:"健康",stock:1,isConsumable:false},
+  {code:"590372",name:"ミドリノケンコウヤサイN",price:250,category:"健康",stock:1,isConsumable:false},
+  {code:"700108",name:"レイシ・ニンジンWゴールドN",price:500,category:"健康",stock:1,isConsumable:false},
+  // 消耗品
+  {code:"",name:"エタノール",price:1000,category:"消耗品",stock:1,isConsumable:true},
+  {code:"",name:"コットンS",price:100,category:"消耗品",stock:3,isConsumable:true},
+  {code:"",name:"コットン大",price:700,category:"消耗品",stock:2,isConsumable:true},
+  {code:"",name:"ミラーフィルム100枚入り",price:1500,category:"消耗品",stock:1,isConsumable:true},
+  {code:"",name:"パックシート100枚入り",price:1500,category:"消耗品",stock:1,isConsumable:true},
+  {code:"",name:"目元シート30枚入り",price:300,category:"消耗品",stock:1,isConsumable:true},
+  {code:"",name:"サクション用エッセンスすっきリ",price:3000,category:"消耗品",stock:1,isConsumable:true},
+  {code:"",name:"サクション用エッセンスうるおい",price:2000,category:"消耗品",stock:1,isConsumable:true},
+  {code:"",name:"純水器カートリッジ3か月",price:4000,category:"消耗品",stock:1,isConsumable:true},
+  {code:"",name:"EM用のマスクシート10枚入り",price:600,category:"消耗品",stock:1,isConsumable:true},
+];
+
+const CAT_COLORS = {
+  'AU':'#c9727a','EM':'#b8975a','LI':'#7a9e8a','TK':'#8a7ab8','ME':'#b87a9e',
+  'FL':'#7a9eb8','アルファ':'#c9a07a','サロン':'#9ec97a','ネイル':'#e08080',
+  'クロワ':'#80a8e0','ボディ':'#80d4c8','健康':'#d4b480','消耗品':'#e07b30'
+};
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let S = {
+  products: [],
+  history: [],           // {id,ts,type:'in'|'sell'|'tester'|'consumable',code,name,qty,staff,stockAfter,amount}
+  staff: ['店長','大城','平良','小嶺','比嘉A','BA'],
+  currentStaff: '店長',
+  selectedCat: 'ALL',
+  gasUrl: '',
+  sheetUrl: '',
+  trendData: [],         // {ts, amount}  — kept forever for history
+  analysisPeriod: 'today',
+};
+
+const STORAGE_KEY = 'menard_v3';
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function init() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try {
+      const d = JSON.parse(raw);
+      S.products  = d.products  || cloneMaster();
+      S.history   = d.history   || [];
+      S.staff     = d.staff     || S.staff;
+      S.currentStaff = d.currentStaff || S.staff[0];
+      S.trendData = d.trendData || [];
+      S.gasUrl    = d.gasUrl    || '';
+      S.sheetUrl  = d.sheetUrl  || '';
+    } catch { S.products = cloneMaster(); }
+  } else {
+    S.products = cloneMaster();
+  }
+  document.getElementById('gasUrl').value  = S.gasUrl;
+  document.getElementById('sheetUrl').value = S.sheetUrl;
+  renderStaffBar();
+  buildCatFilter();
+  renderProducts();
+  renderHistory();
+  updateTotal();
+  recordTrend();
+  renderMasterTable();
+  updateManagerLock();
+}
+
+function cloneMaster() {
+  return MASTER_DEFAULT.map(p => ({...p}));
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    products: S.products, history: S.history, staff: S.staff,
+    currentStaff: S.currentStaff, trendData: S.trendData,
+    gasUrl: S.gasUrl, sheetUrl: S.sheetUrl,
+  }));
+}
+
+// ═══════════════════════════════════════════════
+//  STAFF
+// ═══════════════════════════════════════════════
+function renderStaffBar() {
+  const bar = document.getElementById('staffBar');
+  bar.innerHTML = '<span class="staff-lbl">担当：</span>';
+  S.staff.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'staff-btn' + (name === S.currentStaff ? ' active' : '');
+    btn.textContent = name;
+    btn.onclick = () => {
+      S.currentStaff = name;
+      document.querySelectorAll('.staff-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateManagerLock();
+    };
+    bar.appendChild(btn);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-staff-btn';
+  addBtn.textContent = '＋編集';
+  addBtn.onclick = () => openStaffModal();
+  bar.appendChild(addBtn);
+  updateManagerLock();
+}
+
+// 店長権限チェック
+function isManager() {
+  return S.currentStaff === S.staff[0]; // 先頭スタッフ＝店長
+}
+
+function updateManagerLock() {
+  const locked   = !isManager();
+  const mLocked  = document.getElementById('masterLocked');
+  const mUnlocked= document.getElementById('masterUnlocked');
+  const dLocked  = document.getElementById('dataLocked');
+  const dUnlocked= document.getElementById('dataUnlocked');
+  const badge    = document.getElementById('masterLockBadge');
+  if (!mLocked) return;
+  if (locked) {
+    mLocked.style.display  = 'block';
+    mUnlocked.style.display= 'none';
+    dLocked.style.display  = 'block';
+    dUnlocked.style.display= 'none';
+    if (badge) badge.innerHTML = '<span style="background:#eee;color:#aaa;border-radius:8px;padding:1px 8px;">🔒 店長専用</span>';
+  } else {
+    mLocked.style.display  = 'none';
+    mUnlocked.style.display= 'block';
+    dLocked.style.display  = 'none';
+    dUnlocked.style.display= 'block';
+    if (badge) badge.innerHTML = '<span style="background:#eaf4ef;color:#5f9e7e;border-radius:8px;padding:1px 8px;">🔓 編集可能</span>';
+    renderMasterTable();
+  }
+}
+
+function openStaffModal() {
+  const list = document.getElementById('staffEditList');
+  list.innerHTML = '';
+  S.staff.forEach((name, i) => {
+    const row = document.createElement('div');
+    row.className = 'staff-list-item';
+    row.innerHTML = `<input type="text" value="${name}" id="staff_inp_${i}">
+      <button class="s-del-btn" onclick="removeStaffRow(${i})">削除</button>`;
+    list.appendChild(row);
+  });
+  openModal('staffModal');
+}
+
+function addStaffRow() {
+  if (S.staff.length >= 8) { showToast('⚠️ 最大8名までです'); return; }
+  S.staff.push('新スタッフ');
+  openStaffModal();
+}
+
+function removeStaffRow(i) {
+  if (S.staff.length <= 1) { showToast('⚠️ 1名以上必要です'); return; }
+  S.staff.splice(i, 1);
+  openStaffModal();
+}
+
+function saveStaff() {
+  const inputs = document.querySelectorAll('[id^="staff_inp_"]');
+  const names = [];
+  inputs.forEach(inp => { const v = inp.value.trim(); if (v) names.push(v); });
+  if (!names.length) return;
+  S.staff = names;
+  if (!S.staff.includes(S.currentStaff)) S.currentStaff = S.staff[0];
+  save();
+  renderStaffBar();
+  closeModal('staffModal');
+  showToast('✅ スタッフを保存しました');
+}
+
+// ═══════════════════════════════════════════════
+//  VIEWS
+// ═══════════════════════════════════════════════
+function switchView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('#mainTabs .t-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('closingBtn').style.display =
+    (name === 'inventory' || name === 'analysis') ? 'block' : 'none';
+  if (name === 'analysis') { renderAnalysis(); }
+  if (name === 'history')  { renderHistory(); }
+  if (name === 'settings') { updateManagerLock(); }
+}
+
+// ═══════════════════════════════════════════════
+//  CATEGORY FILTER
+// ═══════════════════════════════════════════════
+function buildCatFilter() {
+  const cats = ['ALL', ...new Set(S.products.map(p => p.category))];
+  const bar = document.getElementById('catFilter');
+  bar.innerHTML = '';
+  cats.forEach(cat => {
+    const chip = document.createElement('button');
+    chip.className = 'cat-chip' + (cat === S.selectedCat ? ' active' : '');
+    chip.textContent = cat;
+    const col = CAT_COLORS[cat] || '#aaa';
+    if (cat !== 'ALL') { chip.style.borderColor = col; }
+    if (cat === S.selectedCat && cat !== 'ALL') { chip.style.background = col; chip.style.color = '#fff'; }
+    chip.onclick = () => {
+      S.selectedCat = cat;
+      buildCatFilter();
+      renderProducts();
+    };
+    bar.appendChild(chip);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER PRODUCTS
+// ═══════════════════════════════════════════════
+function renderProducts() {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  const list = document.getElementById('productList');
+  const filtered = S.products.filter(p => {
+    const matchCat = S.selectedCat === 'ALL' || p.category === S.selectedCat;
+    const matchQ = !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || p.code.includes(q);
+    return matchCat && matchQ;
+  });
+  list.innerHTML = '';
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty"><div class="ic">🔍</div><p>該当商品なし</p></div>';
+    return;
+  }
+  filtered.forEach(p => list.appendChild(makeProductCard(p)));
+}
+
+function makeProductCard(p) {
+  const key = p.code || p.name;
+  const col = CAT_COLORS[p.category] || '#aaa';
+  const scClass = p.stock <= 0 ? 'zero' : p.stock <= 2 ? 'low' : '';
+  const div = document.createElement('div');
+  div.className = 'p-card' + (p.isConsumable ? ' consumable' : '');
+  div.id = 'card_' + encodeKey(key);
+
+  // action buttons — consumable has different UI
+  let actHtml;
+  if (p.isConsumable) {
+    actHtml = `
+      <div class="act-btns">
+        <div class="act-row">
+          <button class="ab ab-in" onclick="doAction('${escKey(key)}','in',event)">📥 追加</button>
+          <button class="ab ab-urgent" onclick="doAction('${escKey(key)}','consumable',event)">⚠️ 至急追加</button>
+        </div>
+        <div class="act-row" style="justify-content:flex-end;">
+          <button class="ab" style="background:#eee;color:#777;font-size:10px;" onclick="doAction('${escKey(key)}','consumable_use',event)">使用 -1</button>
+        </div>
+      </div>`;
+  } else {
+    actHtml = `
+      <div class="act-btns">
+        <div class="act-row">
+          <button class="ab ab-in" onclick="doAction('${escKey(key)}','in',event)">📥 入庫</button>
+        </div>
+        <div class="act-row">
+          <button class="ab ab-sell" onclick="doAction('${escKey(key)}','sell',event)">🛍 販売</button>
+          <button class="ab ab-test" onclick="doAction('${escKey(key)}','tester',event)">🧪 テスター</button>
+        </div>
+      </div>`;
+  }
+
+  div.innerHTML = `
+    <div class="cat-bar" style="background:${col};width:8px;height:8px;border-radius:50%;flex-shrink:0;"></div>
+    <div class="p-info">
+      <div class="p-name">${p.name}</div>
+      <div class="p-meta">
+        <span class="p-price">¥${p.price.toLocaleString()}</span>
+        <span>${p.category}</span>
+        ${p.code ? `<span style="font-size:10px;color:#bbb;">${p.code}</span>` : ''}
+        ${p.isConsumable ? '<span class="consumable-badge">消耗品</span>' : ''}
+      </div>
+    </div>
+    <div class="sc-wrap">
+      <div class="sc-num ${scClass}" id="scn_${encodeKey(key)}">${p.stock}</div>
+    </div>
+    ${actHtml}
+  `;
+  return div;
+}
+
+function escKey(k) { return k.replace(/'/g, "\\'"); }
+function encodeKey(k) { return btoa(unescape(encodeURIComponent(k))).replace(/[^a-zA-Z0-9]/g,'_'); }
+
+// ═══════════════════════════════════════════════
+//  ACTION (in / sell / tester / consumable / consumable_use)
+// ═══════════════════════════════════════════════
+function doAction(key, type, event) {
+  const p = S.products.find(x => (x.code === key) || (x.name === key));
+  if (!p) return;
+
+  let delta = 0;
+  let isOut = false;
+
+  if (type === 'in') { delta = +1; }
+  else if (type === 'sell' || type === 'tester') { delta = -1; isOut = true; }
+  else if (type === 'consumable') {
+    // 至急追加ボタン = 在庫を+1 かつ警告表示
+    delta = +1;
+    showUrgentAlert(p.name);
+  }
+  else if (type === 'consumable_use') { delta = -1; isOut = true; }
+
+  if (isOut && p.stock <= 0) { showToast('⚠️ 在庫が0です'); return; }
+  p.stock += delta;
+
+  // Update DOM count
+  const scEl = document.getElementById('scn_' + encodeKey(key));
+  if (scEl) {
+    scEl.textContent = p.stock;
+    scEl.className = 'sc-num ' + (p.stock <= 0 ? 'zero' : p.stock <= 2 ? 'low' : '');
+  }
+
+  // Flash
+  const card = event?.target?.closest('.p-card');
+  if (card) {
+    card.classList.remove('flash-in','flash-out','flash-urg');
+    void card.offsetWidth;
+    if (type === 'in') card.classList.add('flash-in');
+    else if (type === 'consumable') card.classList.add('flash-urg');
+    else card.classList.add('flash-out');
+    setTimeout(() => card.classList.remove('flash-in','flash-out','flash-urg'), 600);
+  }
+
+  // Consumable low-stock warning
+  if (p.isConsumable && p.stock <= 0) {
+    showUrgentAlert(p.name + ' が0になりました！');
+  } else if (p.isConsumable && p.stock === 1 && isOut) {
+    showToast(`⚠️【${p.name}】残り1個！店長に注文をお願いしてください`);
+  }
+
+  // History entry
+  const histType = p.isConsumable ? (delta > 0 ? 'in' : 'consumable') : type;
+  const entry = {
+    id: Date.now(),
+    ts: new Date().toISOString(),
+    type: histType,
+    code: p.code,
+    name: p.name,
+    qty: Math.abs(delta),
+    staff: S.currentStaff,
+    stockAfter: p.stock,
+    amount: p.price * Math.abs(delta),
+    category: p.category,
+    isConsumable: p.isConsumable,
+  };
+  S.history.unshift(entry);
+
+  updateTotal();
+  recordTrend();
+  save();
+
+  // Toast message
+  const labels = {in:'入庫 +1', sell:'販売 出庫 -1', tester:'テスター出庫 -1', consumable:'使用 -1', consumable_use:'使用 -1'};
+  showToast(`${histType === 'in' ? '✅' : '📤'} ${p.name}｜${labels[type] || ''}`);
+
+  // Auto GAS sync
+  if (S.gasUrl) autoSync(entry);
+}
+
+// ═══════════════════════════════════════════════
+//  URGENT ALERT
+// ═══════════════════════════════════════════════
+function showUrgentAlert(name) {
+  const el = document.getElementById('urgentAlert');
+  document.getElementById('urgentMsg').textContent =
+    `【${name}】店長に至急注文をお願いしてください！`;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 8000);
+}
+function closeUrgent() { document.getElementById('urgentAlert').style.display = 'none'; }
+
+// ═══════════════════════════════════════════════
+//  TOTAL
+// ═══════════════════════════════════════════════
+function calcTotal() { return S.products.reduce((s, p) => s + p.price * p.stock, 0); }
+function updateTotal() { document.getElementById('totalAmt').textContent = '¥' + calcTotal().toLocaleString(); }
+
+// ═══════════════════════════════════════════════
+//  TREND
+// ═══════════════════════════════════════════════
+function recordTrend() {
+  S.trendData.push({ ts: new Date().toISOString(), amount: calcTotal() });
+  if (S.trendData.length > 5000) S.trendData = S.trendData.slice(-5000);
+}
+
+// ═══════════════════════════════════════════════
+//  HISTORY
+// ═══════════════════════════════════════════════
+function renderHistory() {
+  const ftype  = document.getElementById('hFilter')?.value || 'all';
+  const fq     = (document.getElementById('hSearch')?.value || '').toLowerCase();
+  const list   = document.getElementById('historyList');
+  let items    = S.history;
+  if (ftype !== 'all') items = items.filter(h => h.type === ftype);
+  if (fq) items = items.filter(h =>
+    h.name.toLowerCase().includes(fq) || (h.staff||'').toLowerCase().includes(fq));
+  list.innerHTML = '';
+  if (!items.length) {
+    list.innerHTML = '<div class="empty"><div class="ic">📋</div><p>履歴がありません</p></div>';
+    return;
+  }
+
+  // 今日の締め前かどうか判定
+  const todayStr = new Date().toDateString();
+
+  items.slice(0, 200).forEach(h => {
+    const d   = new Date(h.ts);
+    const ts  = `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const iconMap  = {in:'📥',sell:'🛒',tester:'🧪',consumable:'⚠️',cancelled:'↩️'};
+    const iconCls  = {in:'h-in',sell:'h-sell',tester:'h-tester',consumable:'h-consumable',cancelled:''};
+    const tagMap   = {in:'tag-in',sell:'tag-sell',tester:'tag-tester',consumable:'tag-consumable',cancelled:'tag-cancelled'};
+    const labelMap = {in:'入庫',sell:'販売',tester:'テスター',consumable:'消耗品使用',cancelled:'取消済'};
+
+    // 取消ボタンを表示するか（当日・未取消のみ）
+    const isCancellable = !h.cancelled && new Date(h.ts).toDateString() === todayStr;
+
+    const div = document.createElement('div');
+    div.className = 'h-item' + (h.cancelled ? ' cancelled' : '');
+    div.innerHTML = `
+      <div class="h-icon ${iconCls[h.type]||'h-in'}">${h.cancelled ? '↩️' : (iconMap[h.type]||'📦')}</div>
+      <div class="h-info">
+        <div class="h-prod">${h.name}</div>
+        <div class="h-detail">
+          <span class="tag ${h.cancelled ? 'tag-cancelled' : (tagMap[h.type]||'tag-in')}">${h.cancelled ? '取消済' : (labelMap[h.type]||h.type)}</span>
+          <span>${h.qty}個 → 残${h.stockAfter}個</span>
+          <span>¥${h.amount.toLocaleString()}</span>
+          <span class="tag tag-staff">${h.staff||''}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+        <div class="h-time">${ts}</div>
+        ${isCancellable ? `<button class="cancel-btn" onclick="cancelEntry(${h.id})">✕ 取消</button>` : ''}
+      </div>`;
+    list.appendChild(div);
+  });
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+
+// ═══════════════════════════════════════════════
+//  CANCEL ENTRY（取消）
+// ═══════════════════════════════════════════════
+function cancelEntry(id) {
+  const h = S.history.find(x => x.id === id);
+  if (!h || h.cancelled) return;
+  if (!confirm(`「${h.name}」の${({in:'入庫',sell:'販売',tester:'テスター出庫',consumable:'消耗品使用'}[h.type]||h.type)}を取消しますか？`)) return;
+
+  // 在庫を元に戻す（入庫なら-1、出庫なら+1）
+  const p = S.products.find(x => (x.code === h.code && h.code) || x.name === h.name);
+  if (p) {
+    const isIn = h.type === 'in';
+    p.stock += isIn ? -h.qty : +h.qty;
+    if (p.stock < 0) p.stock = 0;
+    // DOM更新
+    const key = p.code || p.name;
+    const scEl = document.getElementById('scn_' + encodeKey(key));
+    if (scEl) {
+      scEl.textContent = p.stock;
+      scEl.className = 'sc-num ' + (p.stock <= 0 ? 'zero' : p.stock <= 2 ? 'low' : '');
+    }
+  }
+
+  // 取消フラグを立てる
+  h.cancelled = true;
+  h.cancelledBy = S.currentStaff;
+  h.cancelledAt = new Date().toISOString();
+
+  updateTotal();
+  recordTrend();
+  save();
+  renderHistory();
+  showToast(`↩️ 取消しました：${h.name}`);
+
+  // GAS に取消を送信
+  if (S.gasUrl) {
+    gasPost({ type:'cancel', entry: h, totalAmount: calcTotal() });
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  ANALYSIS
+// ═══════════════════════════════════════════════
+let trendChartInst = null, catChartInst = null;
+
+function setPeriod(p, btn) {
+  S.analysisPeriod = p;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('yearNote').style.display = p === 'year' ? 'block' : 'none';
+  renderTrendChart();
+}
+
+function renderAnalysis() {
+  renderTrendChart();
+  renderCatChart();
+  renderSellRanking();
+  renderTesterRanking();
+}
+
+function renderTrendChart() {
+  const now  = new Date();
+  let cutoff;
+  if (S.analysisPeriod === 'today') {
+    cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (S.analysisPeriod === 'week') {
+    cutoff = new Date(now - 7*86400000);
+  } else {
+    cutoff = new Date(now - 35*86400000);
+  }
+  if (S.analysisPeriod === 'year') { renderTrendChart_year(); return; }
+
+  let data = S.trendData.filter(d => new Date(d.ts) >= cutoff);
+  // Downsample to max 60 points
+  if (data.length > 60) {
+    const step = Math.floor(data.length / 60);
+    data = data.filter((_, i) => i % step === 0);
+  }
+  const labels  = data.map(d => fmtTs(d.ts, S.analysisPeriod));
+  const amounts = data.map(d => d.amount);
+
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if (trendChartInst) trendChartInst.destroy();
+  trendChartInst = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label:'在庫総額', data: amounts,
+      borderColor:'#c9727a', backgroundColor:'rgba(201,114,122,.1)',
+      borderWidth:2, tension:.4, fill:true, pointRadius: data.length < 30 ? 3 : 0,
+    }]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        y:{ ticks:{ callback: v => '¥'+(v/1000).toFixed(0)+'K', font:{size:10} } },
+        x:{ ticks:{ font:{size:9}, maxTicksLimit:8 } }
+      }
+    }
+  });
+}
+
+function renderTrendChart_year() {
+  // Show monthly aggregates from trendData
+  const monthly = {};
+  S.trendData.forEach(d => {
+    const dt = new Date(d.ts);
+    const key = `${dt.getFullYear()}/${pad(dt.getMonth()+1)}`;
+    monthly[key] = d.amount; // last value of each month
+  });
+  const labels = Object.keys(monthly).slice(-12);
+  const amounts = labels.map(k => monthly[k]);
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if (trendChartInst) trendChartInst.destroy();
+  trendChartInst = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{
+      label:'月末在庫額', data:amounts,
+      backgroundColor:'rgba(201,114,122,.65)', borderColor:'#c9727a', borderWidth:1,
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        y:{ ticks:{ callback: v => '¥'+(v/1000).toFixed(0)+'K', font:{size:10} } },
+        x:{ ticks:{ font:{size:9} } }
+      }
+    }
+  });
+}
+
+function fmtTs(ts, period) {
+  const d = new Date(ts);
+  if (period === 'today') return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (period === 'week')  return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}時`;
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function renderCatChart() {
+  const cats = {};
+  S.products.forEach(p => {
+    cats[p.category] = (cats[p.category]||0) + p.price * p.stock;
+  });
+  const labels = Object.keys(cats);
+  const data   = Object.values(cats);
+  const colors = labels.map(c => CAT_COLORS[c] || '#aaa');
+  const ctx    = document.getElementById('catChart').getContext('2d');
+  if (catChartInst) catChartInst.destroy();
+  catChartInst = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:2, borderColor:'#fff' }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'right', labels:{ font:{size:10}, boxWidth:12 } } }
+    }
+  });
+}
+
+function renderSellRanking() {
+  const agg = {};
+  S.history.filter(h => h.type === 'sell').forEach(h => {
+    if (!agg[h.name]) agg[h.name] = {qty:0, amount:0};
+    agg[h.name].qty += h.qty;
+    agg[h.name].amount += h.amount;
+  });
+  const ranked = Object.entries(agg).sort((a,b) => b[1].qty - a[1].qty);
+  const el = document.getElementById('sellRanking');
+  if (!ranked.length) { el.innerHTML = '<div class="empty" style="padding:20px;"><p>販売実績なし</p></div>'; return; }
+  el.innerHTML = ranked.slice(0,20).map(([name, d]) => `
+    <div class="an-row">
+      <span class="an-name">${name}</span>
+      <span class="an-nums">
+        <span class="an-sell-num">${d.qty}個</span>
+        <span style="color:var(--gold)">¥${d.amount.toLocaleString()}</span>
+      </span>
+    </div>`).join('');
+}
+
+function renderTesterRanking() {
+  const agg = {};
+  S.history.filter(h => h.type === 'tester').forEach(h => {
+    if (!agg[h.name]) agg[h.name] = {qty:0, staff:{}};
+    agg[h.name].qty += h.qty;
+    agg[h.name].staff[h.staff] = (agg[h.name].staff[h.staff]||0) + 1;
+  });
+  const ranked = Object.entries(agg).sort((a,b) => b[1].qty - a[1].qty);
+  const el = document.getElementById('testerRanking');
+  if (!ranked.length) { el.innerHTML = '<div class="empty" style="padding:20px;"><p>テスター出庫なし</p></div>'; return; }
+  el.innerHTML = ranked.slice(0,20).map(([name, d]) => {
+    const topStaff = Object.entries(d.staff).sort((a,b)=>b[1]-a[1])[0];
+    return `<div class="an-row">
+      <span class="an-name">${name}</span>
+      <span class="an-nums">
+        <span class="an-test-num">${d.qty}個</span>
+        <span style="font-size:10px;color:var(--ink3);">${topStaff?topStaff[0]:''}</span>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  MASTER TABLE
+// ═══════════════════════════════════════════════
+function renderMasterTable() {
+  const tbody = document.getElementById('masterTbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const mgr = isManager();
+  S.products.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    const disabled = mgr ? '' : 'disabled style="background:#f5f5f5;color:#aaa;"';
+    tr.innerHTML = `
+      <td><input type="text" value="${p.name}" ${disabled} onchange="if(isManager())S.products[${i}].name=this.value"></td>
+      <td><input type="number" value="${p.price}" style="width:70px;${mgr?'':'background:#f5f5f5;color:#aaa;'}" ${mgr?'':'disabled'} onchange="if(isManager())S.products[${i}].price=+this.value"></td>
+      <td><input type="text" value="${p.category}" style="width:55px;${mgr?'':'background:#f5f5f5;color:#aaa;'}" ${mgr?'':'disabled'} onchange="if(isManager())S.products[${i}].category=this.value"></td>
+      <td><input type="checkbox" ${p.isConsumable?'checked':''} ${mgr?'':'disabled'} onchange="if(isManager())S.products[${i}].isConsumable=this.checked"></td>
+      <td>${mgr ? `<button class="m-del" onclick="deleteMasterRow(${i})">削除</button>` : '<span style="font-size:11px;color:#ccc;">🔒</span>'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function addMasterRow() {
+  if (!isManager()) { showToast('🔒 店長のみ追加できます'); return; }
+  S.products.push({code:'',name:'新商品',price:0,category:'',stock:0,isConsumable:false});
+  renderMasterTable();
+  document.getElementById('masterTbody').lastElementChild?.scrollIntoView({behavior:'smooth'});
+}
+
+function deleteMasterRow(i) {
+  if (!isManager()) { showToast('🔒 店長のみ削除できます'); return; }
+  if (!confirm(`「${S.products[i].name}」を削除しますか？`)) return;
+  S.products.splice(i, 1);
+  renderMasterTable();
+}
+
+function saveMaster() {
+  if (!isManager()) { showToast('🔒 店長のみ保存できます'); return; }
+  save();
+  buildCatFilter();
+  renderProducts();
+  updateTotal();
+  showToast('✅ マスタを保存しました');
+}
+
+async function syncMasterToGAS() {
+  if (!S.gasUrl) { showToast('⚠️ GAS URLを設定してください'); return; }
+  await gasPost({ type:'master_update', products: S.products, ts: new Date().toISOString() });
+  showToast('✅ Googleシートにマスタを同期しました');
+}
+
+// ═══════════════════════════════════════════════
+//  GAS / GOOGLE SHEETS
+// ═══════════════════════════════════════════════
+async function gasPost(payload) {
+  if (!S.gasUrl) return;
+  try {
+    await fetch(S.gasUrl, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+  } catch(e) { console.warn('GAS error', e); }
+}
+
+async function autoSync(entry) {
+  await gasPost({ type:'entry', entry, totalAmount: calcTotal() });
+}
+
+function openGSheetUrl() {
+  if (S.sheetUrl) window.open(S.sheetUrl, '_blank');
+  else showToast('⚠️ スプレッドシートURLを設定タブで入力してください');
+}
+
+async function testGas() {
+  const url = document.getElementById('gasUrl').value.trim();
+  if (!url) { showToast('⚠️ URLを入力してください'); return; }
+  const st = document.getElementById('syncSt');
+  st.style.display = 'block';
+  st.className = 'sync-st sy-go';
+  st.textContent = '接続テスト中...';
+  try {
+    await fetch(url, { method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'ping', ts: new Date().toISOString()}) });
+    st.className = 'sync-st sy-ok';
+    st.textContent = '✅ 送信完了（Googleシートを確認してください）';
+  } catch(e) {
+    st.className = 'sync-st sy-er';
+    st.textContent = '❌ エラー: ' + e.message;
+  }
+}
+
+function saveGasSettings() {
+  S.gasUrl   = document.getElementById('gasUrl').value.trim();
+  S.sheetUrl = document.getElementById('sheetUrl').value.trim();
+  save();
+  showToast('✅ 設定を保存しました');
+}
+
+// ═══════════════════════════════════════════════
+//  CLOSING
+// ═══════════════════════════════════════════════
+function openClosingModal() {
+  const today = new Date().toDateString();
+  const todayH = S.history.filter(h => new Date(h.ts).toDateString() === today);
+  const byProd = {};
+  todayH.forEach(h => {
+    if (!byProd[h.name]) byProd[h.name] = {in:0,sell:0,tester:0,consumable:0};
+    byProd[h.name][h.type] = (byProd[h.name][h.type]||0) + h.qty;
+  });
+  const rows = Object.entries(byProd).map(([name,d]) =>
+    `<tr><td>${name}</td>
+     <td style="text-align:center;color:var(--sage)">+${d.in||0}</td>
+     <td style="text-align:center;color:var(--rose-d)">-${d.sell||0}</td>
+     <td style="text-align:center;color:var(--gold)">-${d.tester||0}</td>
+     <td style="text-align:center;color:var(--amber)">-${d.consumable||0}</td>
+     </tr>`).join('');
+  const total = calcTotal();
+  const inSum = todayH.filter(h=>h.type==='in').reduce((s,h)=>s+h.qty,0);
+  const sellSum = todayH.filter(h=>h.type==='sell').reduce((s,h)=>s+h.qty,0);
+  const testSum = todayH.filter(h=>h.type==='tester').reduce((s,h)=>s+h.qty,0);
+  document.getElementById('closingContent').innerHTML = `
+    <p style="font-size:12px;color:var(--ink3);margin-bottom:10px;">
+      ${new Date().toLocaleDateString('ja-JP')} 集計｜
+      入庫${inSum}件 販売${sellSum}件 テスター${testSum}件
+    </p>
+    ${rows ? `<div class="table-scroll" style="max-height:280px;overflow-y:auto;">
+      <table class="s-table">
+        <tr><th>商品</th><th>入庫</th><th>販売</th><th>テスト</th><th>消耗</th></tr>
+        ${rows}
+      </table></div>` : '<p style="color:var(--ink3);font-size:13px;">本日の入出庫なし</p>'}
+  `;
+  document.getElementById('closingTotal').textContent = `在庫総額 ¥${total.toLocaleString()}`;
+  openModal('closingModal');
+}
+
+async function doClosing() {
+  const today = new Date().toDateString();
+  const todayH = S.history.filter(h => new Date(h.ts).toDateString() === today);
+  await gasPost({
+    type:'closing',
+    date: new Date().toISOString(),
+    totalAmount: calcTotal(),
+    history: todayH,
+    products: S.products,
+  });
+  showToast(S.gasUrl ? '✅ Googleシートに締め処理を送信しました' : '⚠️ GAS URLが未設定（ローカル保存のみ）');
+  closeModal('closingModal');
+}
+
+// ═══════════════════════════════════════════════
+//  DATA MGMT
+// ═══════════════════════════════════════════════
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({products:S.products,history:S.history,trendData:S.trendData},null,2)],
+    {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `menard_zaiko_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function resetAll() {
+  if (!isManager()) { showToast('🔒 店長のみリセットできます'); return; }
+  if (!confirm('全データをリセットします。在庫履歴・推移データも消えます。よろしいですか？')) return;
+  S.products = cloneMaster();
+  S.history = [];
+  S.trendData = [];
+  save();
+  renderProducts();
+  renderHistory();
+  renderMasterTable();
+  buildCatFilter();
+  updateTotal();
+  showToast('✅ リセット完了');
+}
+
+// ═══════════════════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+let toastTmr;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
